@@ -33,11 +33,11 @@
         query-params (reduce disj (apply hash-set (remove (comp :+ meta) params)) (cons body-param (parse-vars uri)))]
     `[(defn ~name ~params
         (merge-maps
-          {:query-params   (into {} (filter second)
+          {:query-params   (into {} (filter (comp some? second))
                                  ~(zipmap (map (comp str (var-get (resolve xf))) query-params)
                                           (map #(if (:json (meta %)) `(json/generate-string ~%) %) query-params)))
            :request-method ~method
-           :url           (str ~@(parse-vars uri))}
+           :url            (str ~@(parse-vars uri))}
           ~(merge
              {}
              (when json-resp {:as :json})
