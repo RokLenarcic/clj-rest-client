@@ -13,7 +13,8 @@
 (s/def ::json-responses boolean?)
 (s/def ::instrument boolean?)
 (s/def ::param-transform ifn?)
+(s/def ::val-transform ifn?)
 (s/def ::path-prefix string?)
 
-(s/def ::options* (s/keys* :opt-un [::json-bodies ::json-responses ::param-transform ::instrument]))
-(s/def ::options (s/keys :opt-un [::json-bodies ::json-responses ::param-transform ::instrument]))
+(s/def ::options* (s/keys* :opt-un [::json-bodies ::json-responses ::param-transform ::instrument ::val-transform]))
+(s/def ::options (s/keys :opt-un [::json-bodies ::json-responses ::param-transform ::instrument ::val-transform]))

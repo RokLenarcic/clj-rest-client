@@ -4,6 +4,7 @@ A Clojure library which converts a REST specification into functions that emit `
 
 Very light-weight. 
 
+**[Change Log](CHANGELOG.md)**
 
 ## Why this library?
 
@@ -16,7 +17,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-beta2"]
+[clj-rest-client "1.0.0-beta3"]
 ```
 
 In your namespace add dependency:
@@ -145,6 +146,13 @@ Here's the options with defaults
 This option specifies function that is transformation: parameter (symbol) -> query parameter name (string).
 
 This is useful to transform clojure's kebab-case symbol names to camel case param names.
+
+#### val-transform
+
+This option specified a function that is applied to all arguments after argument spec and before being embedded into
+request map. It's a function of two arguments: param name symbol and param value, returns new param value. 
+
+Default implementation replaces keyword params with their name string. It's available (for delegating purposes) as `default-val-transform` in core namespace.
 
 #### json-responses
 

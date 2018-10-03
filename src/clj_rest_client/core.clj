@@ -11,6 +11,10 @@
 
 (defn merge-maps [& values] (if (every? map? values) (apply merge-with merge-maps values) (last values)))
 
+(defn default-val-transform
+  "Default transformation that is used on params' values"
+  [_ v] (if (keyword? v) (name v) v))
+
 (defn prefix-middleware
   "Function for creating a clj-http middleware that prepends to url."
   [url-prefix]
@@ -27,22 +31,23 @@
        (mapcat (fn [[_ txt var-name]] [txt (when var-name (symbol var-name))]))
        (filter some?)))
 
-(defn- req-spec [name uri method params-n-specs extra {:keys [json-body json-resp xf instrument]}]
+(defn- req-spec [name uri method params-n-specs extra {:keys [json-body json-resp xf instrument val-xf]}]
   (let [params (mapv :param params-n-specs)
         body-param (first (filter (comp :body meta) params))
         query-params (reduce disj (apply hash-set (remove (comp :+ meta) params)) (cons body-param (parse-vars uri)))]
     `[(defn ~name ~params
-        (merge-maps
-          {:query-params   (into {} (filter (comp some? second))
-                                 ~(zipmap (map (comp str (var-get (resolve xf))) query-params)
-                                          (map #(if (:json (meta %)) `(json/generate-string ~%) %) query-params)))
-           :request-method ~method
-           :url            (str ~@(parse-vars uri))}
-          ~(merge
-             {}
-             (when json-resp {:as :json})
-             (when body-param (if json-body {:form-params body-param :content-type :json} {:body body-param})))
-          (or ~extra {})))
+        (let [~@(mapcat #(list % (list val-xf (list 'quote %) %)) params)]
+          (merge-maps
+            {:query-params   (into {} (filter (comp some? second))
+                                   ~(zipmap (map (comp str (var-get (resolve xf))) query-params)
+                                            (map #(if (:json (meta %)) `(json/generate-string ~%) %) query-params)))
+             :request-method ~method
+             :url            (str ~@(parse-vars uri))}
+            ~(merge
+               {}
+               (when json-resp {:as :json})
+               (when body-param (if json-body {:form-params body-param :content-type :json} {:body body-param})))
+            (or ~extra {}))))
       (~(if instrument `stest/instrument `identity)
         (s/fdef ~name :args (s/cat ~@(mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs))))]))
 
@@ -64,9 +69,9 @@
     (when name
       (edn/read-string (slurp (if (starts-with? name " classpath: ") (io/resource (subs name 10)) (URL. name))))))
 
-(defmacro defrest-map [definition {:keys [json-responses json-bodies param-transform instrument]
+(defmacro defrest-map [definition {:keys [json-responses json-bodies param-transform instrument val-transform]
                                    :or {json-responses true json-bodies true instrument true}}]
-  (let [defs (extract-defs definition "" {:json-body json-bodies :json-resp json-responses :xf (or param-transform 'identity) :instrument instrument} true)]
+  (let [defs (extract-defs definition "" {:json-body json-bodies :json-resp json-responses :xf (or param-transform 'identity) :instrument instrument :val-xf (or val-transform `default-val-transform)} true)]
     `(do ~@defs (quote ~(map second (filter #(= `defn (first %)) defs))))))
 
 (s/fdef defrest-map :args (s/cat :def ::spec/terms :opts ::spec/options))
@@ -79,7 +84,9 @@
 
   Definition can be followed by opts key-value arguments, all of them are optional.
 
-  `:param-transform` This option specifies function that is transformation: parameter (symbol) -> query parameter name (string). Default `identity`.
+  `:param-transform` This option specifies function that is transformation: parameter name (symbol) -> query parameter name (string). Default `identity`.
+  `:val-transform` A function that is used to transform all parameter values before they put in map. Fn signature should be (param-name-symbol, param-value) -> new param value.
+   Defaults to a function that converts keywords to a string name (no ns).
   `:json-bodies` If true then body parameters are sent as to-JSON serialized form params, otherwise body params are simply added to request as `:body`. Default true.
   `:json-responses` If true then all requests specify `{:as :json}` and all responses are expected to be json responses. Default true.
   `:instrument` Every function defined by `defrest` has its own `fdef` args spec. If instrument option is true, then all generated functions are also instrumented. Default true.
