@@ -3,8 +3,8 @@
 
 (s/def ::endpointdef
   (s/spec (s/cat :name symbol?
-                 :args (s/? (s/& vector? (s/+ (s/cat :param symbol? :spec any?))))
-                 :extra (s/? any?))))
+                 :args (s/? (s/& vector? (s/* (s/cat :param symbol? :spec any?))))
+                 :extra (s/? map?))))
 (s/def ::path (s/and string? #(not= (first %) \/)))
 (s/def ::method #(or (symbol? %) (keyword? %)))
 (s/def ::term (s/or :subpath (s/cat :path ::path :more ::terms) :endpoint (s/cat :method ::method :def ::endpointdef)))
