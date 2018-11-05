@@ -17,7 +17,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-beta3"]
+[clj-rest-client "1.0.0-rc1"]
 ```
 
 In your namespace add dependency:
@@ -83,11 +83,50 @@ Due to optionals the following definition is also legal:
 {GET (get-all)}
 ```
 
+### Parameter Specs
+
+Parameter specs are applied to parameters with conform. This enables you to use `(s/conforming ...)` in parameter vector to convert types before they are sent.
+
+There are a few premade conformers in `clj-rest-client.conform` namespace that you can combine with `s/and` to do formatting. Usually you'll use `:refer` directive.
+
+```
+(:require [clj-rest-client.conform :refer [->json ->json? ->json* ->json?* ->date-format])
+```
+
+#### Date formatting
+
+This will format `java.util.Date` and `java.time` objects using the given formatter.
+
+```clojure
+(defrest {"example" {GET (example [date (->date-format DateTimeFormatter/ISO_DATE_TIME)])}})
+```
+
+#### ->json, ->json*
+
+Sometimes you need to convert a query parameter or a part of a bigger parameter to JSON. Use this conformer:
+
+```clojure
+(defrest {"example" {GET (example [inline-query-map (s/and map? ->json)])}})
+```
+
+Function `->json*` works the same, but it takes a cheshire opt map.
+
+#### ->json?, ->json?*
+
+The previous example spec doesn't take `nil` values, but if you changed `map?` to `(s/nillable map?)` then invoking the function
+with `nil` would produce query parameter `inline-query-map=null`. If you want `nil` to stay `nil` (and thus be eliminated from
+query parameters) then use var with question mark:
+
+```clojure
+(defrest {"example" {GET (example [inline-query-map (s/and (s/nillable map?) ->json?)])}})
+```
+
 ### Query parameters
 
-All parameters defined default to being sent as query parameters, unless otherwise specified.
+All parameters defined default to being sent as query parameters, unless otherwise specified. Query parameters that are `nil` are
+absent.
 
-Description of other types follows. 
+Description of other parameter types follows. 
 
 ### Path parameters
 
@@ -110,12 +149,8 @@ Note that `x` and `y` are now used as path parameters, but `z` is a query parame
 Parameters in parameter vector can be annotated.
 
 ```clojure
-[id pos-int? ^:+ password string? ^:json context map? ^:body report bytes?]
+[id pos-int? ^:+ password string? ^:body report bytes?]
 ```
-
-#### :json
-
-Causes query parameter to be rendered into json-string. This can of course lead to huge query parameters.
 
 #### :body
 
@@ -143,13 +178,13 @@ Here's the options with defaults
 
 #### param-transform
 
-This option specifies function that is transformation: parameter (symbol) -> query parameter name (string).
+This option specifies function that is uset to transform query parameter names: parameter (symbol) -> query parameter name (string).
 
 This is useful to transform clojure's kebab-case symbol names to camel case param names.
 
 #### val-transform
 
-This option specified a function that is applied to all arguments after argument spec and before being embedded into
+This option specifies a function that is applied to all arguments after argument spec and conform and before being embedded into
 request map. It's a function of two arguments: param name symbol and param value, returns new param value. 
 
 Default implementation replaces keyword params with their name string. It's available (for delegating purposes) as `default-val-transform` in core namespace.
@@ -162,11 +197,6 @@ If true then all requests specify `{:as :json}` and all responses are expected t
 
 If true then body parameters are sent as to-JSON serialized form params, otherwise body params are simply added to request as `:body`.
 Default true.
-
-#### instrument
-
-Every function defined by `defrest` has its own `fdef` args spec. If instrument option is true, then all generated functions are also instrumented.
-Defaults to true. 
 
 ### Loading definition
 
