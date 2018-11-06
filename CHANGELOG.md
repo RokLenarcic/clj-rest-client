@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## 1.0.0-rc2
 
 - add unform to date conformer
+- added ability to specify path parameters for whole subtree at a single site
 
 ## 1.0.0-rc1
 
