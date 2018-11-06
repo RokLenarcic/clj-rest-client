@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc2
+
+- add unform to date conformer
+
 ## 1.0.0-rc1
 
 - fix error when parameter vector was missing

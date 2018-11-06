@@ -56,18 +56,20 @@
             (or ~extra {}))))
       (s/fdef ~name :args (s/cat ~@(mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs)))]))
 
-(defn- extract-defs [structure path opts root?]
+(defn- extract-defs [structure path prefix-param-list opts root?]
   "Traverse structure and emit a sequence of defn forms"
-  (mapcat
-    (fn [[k v]]
-      (if (string? k)
-        (if (map? v)
-          (extract-defs v (if root? k (str path "/" k)) opts false)
-          (throw (ex-info (str "Path " path "/" k " must point to map not " v) {})))
-        (let [keyword-method (if (symbol? k) (keyword (.toLowerCase (str k))) k)
-              {:keys [name args extra]} (s/conform ::spec/endpointdef v)]
-          (req-spec name path keyword-method args extra opts))))
-    structure))
+  (let [str-path-part (fn [[type val]] (str (if root? "" (str path "/")) (if (= type :simple-path) val (:path val))))
+        combine-prefix-param-list (fn [[type val]] (if (= type :simple-path) [] (into prefix-param-list (:args val))))]
+    (mapcat
+      (fn [{:keys [method def path-part more]}]
+        (if path-part
+          (if (map? more)
+            (extract-defs more (str-path-part path-part) (combine-prefix-param-list path-part) opts false)
+            (throw (ex-info (str "Path " (str-path-part path-part) " must point to map not " more) {})))
+          (let [keyword-method (if (symbol? method) (keyword (.toLowerCase (str method))) method)
+                {:keys [name args extra]} def]
+            (req-spec name path keyword-method (into prefix-param-list args) extra opts))))
+      (vals structure))))
 
 (defn- load-from-url [name]
   ; Add -Djava.protocol.handler.pkgs=org.my.protocols to enable custom protocols
@@ -76,7 +78,7 @@
 
 (defmacro defrest-map [definition {:keys [json-responses json-bodies param-transform val-transform]
                                    :or {json-responses true json-bodies true}}]
-  (let [defs (extract-defs definition "" {:json-body json-bodies :json-resp json-responses :xf (or param-transform 'identity) :val-xf (or val-transform `default-val-transform)} true)]
+  (let [defs (extract-defs (s/conform ::spec/terms definition) "" [] {:json-body json-bodies :json-resp json-responses :xf (or param-transform 'identity) :val-xf (or val-transform `default-val-transform)} true)]
     `(do ~@defs (quote ~(map second (filter #(= `defn (first %)) defs))))))
 
 (s/fdef defrest-map :args (s/cat :def ::spec/terms :opts ::spec/options))

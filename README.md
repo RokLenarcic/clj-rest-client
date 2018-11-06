@@ -17,7 +17,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc1"]
+[clj-rest-client "1.0.0-rc2"]
 ```
 
 In your namespace add dependency:
@@ -53,13 +53,13 @@ A description of features, options and solutions for common needs.
 Definition is a nested map. Symbol or keyword keys define signature for a HTTP method for this subpath. E.g.
 
 ```clojure
-(defrest {"http://example.com" {"person" {GET (get-person-by-id [id pos-int?])}}})
+(defrest {"http://example.com" {"person" {"{id}" {GET (get-person-by-id [id pos-int? detail-level pos-int?] {:as :bytes})}}}})
 ```
 
 Here the GET symbol key is followed by an endpoint definition, which defines a function for GET method for `http://example.com/person` subpath.
 It is equivalent to use `GET` or `get` or `:get`.
 
-The string keys in the nested definition map are there to denote subpaths. The shouldn't start or end with `/`.
+The string keys in the nested definition map are there to denote subpaths. They shouldn't start or end with `/`.
 
 **In this particular example the root string key also defines protocol, server, port.**
 
@@ -75,7 +75,8 @@ The endpoint definition is a list or vector (in this example a list), which cont
 
 - a symbol, name of function to be declared
 - an optional argument vector, defaults to `[]`, must contain alternating parameter names and parameter specs.
-- an expression that evaluates to a map, defaults to `{}`, contains additional properties for returned map, it can use parameters in definition
+- an optional non-vector expression that evaluates to a map, defaults to `{}`, contains additional properties for returned request map, 
+it can use parameters in definition
 
 Due to optionals the following definition is also legal:
 
@@ -143,6 +144,29 @@ This expands into the following code for url construction:
 ```
 
 Note that `x` and `y` are now used as path parameters, but `z` is a query parameter.
+
+You can specify format of common parameters in a map key, by using vector instead of string:
+
+So instead of doing:
+
+```clojure
+(defrest {"patient"
+           {"{id}"
+             {GET (get-patient [id pos-int? detail pos-int?]
+              POST (upsert-patient [id pos-int? patient ::patient]))}}})
+```
+
+you can do:
+
+```clojure
+(defrest {"patient"
+           {["{id}" id pos-int?]
+             {GET (get-patient [detail pos-int?]
+              POST (upsert-patient [patient ::patient]))}}})
+```
+
+Here common path parameter was moved into the path spec, but the generated functions are the same.
+Every function on that subtree gets that parameter prepended.
 
 ### Parameter annotations
 
@@ -226,7 +250,7 @@ One way to deal with this is to simply use two `defrest` with different defaults
 (defrest {"special" ... define 5% of endpoints here} :json-bodies false)
 ```
 
-Or simply find the minority cases and use the extras array to override the default:
+Or simply find the minority cases and use the extras map to override the default:
 
 ```clojure
 (defrest {"special" {"endpoint" {GET (get-file {:as :bytes})}}})
