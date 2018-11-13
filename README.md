@@ -17,7 +17,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc2"]
+[clj-rest-client "1.0.0-rc3"]
 ```
 
 In your namespace add dependency:
@@ -151,18 +151,18 @@ So instead of doing:
 
 ```clojure
 (defrest {"patient"
-           {"{id}"
-             {GET (get-patient [id pos-int? detail pos-int?]
-              POST (upsert-patient [id pos-int? patient ::patient]))}}})
+           {"{id}/{type}"
+             {GET (get-patient [id pos-int? type string? detail pos-int?])
+              POST (upsert-patient [id pos-int? type string? patient ::patient])}}})
 ```
 
 you can do:
 
 ```clojure
 (defrest {"patient"
-           {["{id}" id pos-int?]
-             {GET (get-patient [detail pos-int?]
-              POST (upsert-patient [patient ::patient]))}}})
+           {["{id}/{type}" pos-int? string?]
+             {GET (get-patient [detail pos-int?])
+              POST (upsert-patient [patient ::patient])}}})
 ```
 
 Here common path parameter was moved into the path spec, but the generated functions are the same.

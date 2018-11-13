@@ -56,19 +56,21 @@
             (or ~extra {}))))
       (s/fdef ~name :args (s/cat ~@(mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs)))]))
 
-(defn- extract-defs [structure path prefix-param-list opts root?]
+(defn- extract-defs [structure path prepend-args opts root?]
   "Traverse structure and emit a sequence of defn forms"
   (let [str-path-part (fn [[type val]] (str (if root? "" (str path "/")) (if (= type :simple-path) val (:path val))))
-        combine-prefix-param-list (fn [[type val]] (if (= type :simple-path) [] (into prefix-param-list (:args val))))]
+        path-args
+        (fn [[type val]]
+          (if (= type :simple-path) [] (map #(hash-map :param %1 :spec %2) (distinct (filter symbol? (parse-vars (:path val)))) (:args val))))]
     (mapcat
       (fn [{:keys [method def path-part more]}]
         (if path-part
           (if (map? more)
-            (extract-defs more (str-path-part path-part) (combine-prefix-param-list path-part) opts false)
+            (extract-defs more (str-path-part path-part) (into prepend-args (path-args path-part)) opts false)
             (throw (ex-info (str "Path " (str-path-part path-part) " must point to map not " more) {})))
           (let [keyword-method (if (symbol? method) (keyword (.toLowerCase (str method))) method)
                 {:keys [name args extra]} def]
-            (req-spec name path keyword-method (into prefix-param-list args) extra opts))))
+            (req-spec name path keyword-method (into prepend-args args) extra opts))))
       (vals structure))))
 
 (defn- load-from-url [name]

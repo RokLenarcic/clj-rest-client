@@ -6,8 +6,7 @@
                  :args (s/? (s/& vector? (s/* (s/cat :param symbol? :spec any?))))
                  :extra (s/? (complement vector?)))))
 (s/def ::simple-path (s/and string? #(not= (first %) \/)))
-(s/def ::path (s/or :simple-path ::simple-path
-                :complex-path (s/cat :path ::simple-path :args (s/* (s/cat :param symbol? :spec any?)))))
+(s/def ::path (s/or :simple-path ::simple-path :complex-path (s/cat :path ::simple-path :args (s/+ any?))))
 (s/def ::method #(or (symbol? %) (keyword? %)))
 (s/def ::term (s/or :subpath (s/cat :path-part ::path :more ::terms) :endpoint (s/cat :method ::method :def ::endpointdef)))
 (s/def ::terms (s/coll-of ::term :kind map?))

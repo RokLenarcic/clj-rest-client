@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc3
+
+- improve date unforming, default implementatin now returns a `java.time` object on best effort basis
+- when specifying path parameters at path definition site, param symbols are no longer needed.
+e.g `["{id}" id ::id]` is now shortened to `["{id}" ::id]`. 
+
 ## 1.0.0-rc2
 
 - add unform to date conformer
