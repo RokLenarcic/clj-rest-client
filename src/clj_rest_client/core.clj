@@ -44,6 +44,7 @@
         params-typed (group-by (partial ptype name) params)
         ->param-map (fn [syms] (zipmap (map (comp str (var-get (resolve xf))) syms) syms))
         query-params (set/difference (into #{} (get params-typed nil)) (into #{} (parse-vars uri)))
+        form-params (apply merge {} (->param-map (:form params-typed)) (:form-map params-typed))
         conformed-sym (gensym "__auto__conf")]
     `[(defn ~name ~params
         (let [arg-spec# (s/cat ~@(mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs))
@@ -52,22 +53,20 @@
                     (let [ed# (s/explain-data arg-spec# ~params)]
                       (throw (ex-info (str "Call to " ~*ns* "/" ~(str name) " did not conform to spec:\n" (with-out-str (s/explain-out ed#))) ed#))))
               ~@(mapcat #(list % (list val-xf (list 'quote %) (list (keyword (str %)) conformed-sym))) params)]
-          (merge-maps
-            {:query-params   (into {} (filter (comp some? second))
-                               ~(->param-map query-params))
-             :request-method ~method
-             :url            (str ~@(parse-vars uri))}
-            ~(merge
-               (apply merge {} (->param-map (:form params-typed)) (:form-map params-typed))
-               (when json-resp {:as :json})
-               (let [bparam (first (:body params-typed))]
-                 (when bparam
-                   `(when (some? ~bparam)
-                     ~(condp = jsonify-bodies
-                        :always `{:body (json/generate-string ~bparam) :content-type :json}
-                        :smart `{:body (if (string? ~bparam) ~bparam (json/generate-string ~bparam)) :content-type :json}
-                        :never bparam)))))
-            (or ~extra {}))))
+          (~client (merge-maps
+                    {:query-params   (into {} (filter (comp some? second))
+                                       ~(->param-map query-params))
+                     :request-method ~method
+                     :url            (str ~@(parse-vars uri))}
+                    ~(merge {}
+                       (when (not-empty form-params) {:form-params form-params})
+                       (when json-resp {:as :json})
+                       (when-let [bparam (first (:body params-typed))]
+                         (condp = jsonify-bodies
+                            :always `{:body (when (some? ~bparam) (json/generate-string ~bparam)) :content-type :json}
+                            :smart `{:body (if (string? ~bparam) ~bparam (when (some? ~bparam) (json/generate-string ~bparam))) :content-type :json}
+                            :never `{:body ~bparam})))
+                    (or ~extra {})))))
       (s/fdef ~name :args (s/cat ~@(mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs)))]))
 
 (defn- extract-defs [structure path prepend-args opts root?]

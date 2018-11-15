@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc5
+
+- fix a big mistake
+
 ## 1.0.0-rc4
 
 - added new param meta tags `:form` and `:form-map` to denote form params. Default behaviour of `:body` is now
