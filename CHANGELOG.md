@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc4
+
+- added new param meta tags `:form` and `:form-map` to denote form params. Default behaviour of `:body` is now
+to be added to request as a body.
+- `:json-bodies` opt has been removed and `:jsonify-bodies` opt has been added. The new opt regulates the default
+behaviour of converting body parameters to json.
+- `:client` has been added, which is a fn that is invoked on the map before it's returned. Defaults to `identity` but
+this is the perfect place to stick in your client function if you're so inclined.
+
 ## 1.0.0-rc3
 
 - improve date unforming, default implementatin now returns a `java.time` object on best effort basis
