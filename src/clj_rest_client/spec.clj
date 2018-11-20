@@ -3,7 +3,8 @@
 
 (s/def ::endpointdef
   (s/spec (s/cat :name symbol?
-                 :args (s/? (s/& vector? (s/* (s/cat :param symbol? :spec any?)) ))
+                 :fn-spec (s/? any?)
+                 :args (s/& vector? (s/* (s/cat :param symbol? :spec any?)))
                  :extra (s/? (complement vector?)))))
 (s/def ::simple-path (s/and string? #(not= (first %) \/)))
 (s/def ::path (s/or :simple-path ::simple-path :complex-path (s/cat :path ::simple-path :args (s/+ any?))))

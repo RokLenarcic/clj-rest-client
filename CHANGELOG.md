@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc6
+
+- client option is evaluted rather than used as a symbol
+- each endpoint function now embeds the function symbol and the arguments it was passed into the request map using keys `::name` and `::args`.  This is to help
+with all kinds of caching jobs.
+- it is not longer legal to skip argument vector in endpoint definitions, instead there's a new optional spec that can be supplied after function symbol,
+that is applied to conformed argument list. This enables one to spec relations of two parameters. It's essentially `(s/& (s/cat param spec) additional-spec)`.
+
 ## 1.0.0-rc5
 
 - fix a big mistake

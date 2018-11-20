@@ -13,7 +13,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc5"]
+[clj-rest-client "1.0.0-rc6"]
 ```
 
 In your namespace add dependency:
@@ -57,11 +57,15 @@ A description of features, options and solutions for common needs.
 Definition is a nested map. Symbol or keyword keys define signature for a HTTP method for this subpath. E.g.
 
 ```clojure
-(defrest {"http://example.com" {"person" {"{id}" {GET (get-person-by-id [id pos-int? detail-level pos-int?] {:as :bytes})}}}})
+(defrest {"http://example.com" 
+           {"person" 
+             {"{id}" 
+               {GET (get-person-by-id [id pos-int? detail-level pos-int?] {:as :bytes})}}}})
 ```
 
 Here the GET symbol key is followed by an endpoint definition, which defines a function for GET method for `http://example.com/person` subpath.
-It is equivalent to use `GET` or `get` or `:get`.
+
+Method can be specified equally as `GET` or `get` or `:get`.
 
 The string keys in the nested definition map are there to denote subpaths. They shouldn't start or end with `/`.
 
@@ -71,21 +75,26 @@ The string keys in the nested definition map are there to denote subpaths. They 
 
 It will be demonstated later how to approach using definitions without predefined host.
 
+#### Endpoint definition
+
 ```clojure
-{GET (get-example [id pos-int? time inst?] {:as :bytes})}
+{GET (get-example any? [id pos-int? time inst?] {:as :bytes})}
 ```
 
 The endpoint definition is a list or vector (in this example a list), which contains the following:
 
 - a symbol, name of function to be declared
+- an optional spec that is applied to conformed parameter list
 - an optional argument vector, defaults to `[]`, must contain alternating parameter names and parameter specs.
 - an optional non-vector expression that evaluates to a map, defaults to `{}`, contains additional properties for returned request map, 
 it can use parameters in definition
 
+In this example, the spec applied to parameter list `[id time]` will be `(s/& (s/cat :id pos-int? :time inst?) any?)`.
+
 Due to optionals the following definition is also legal:
 
 ```clojure
-{GET (get-all)}
+{GET (get-all [])}
 ```
 
 ### Parameter Specs
