@@ -47,28 +47,50 @@
   (let [form-params (apply merge {} (->param-map (:form params-typed) param-xf) (:form-map params-typed))]
     (when (not-empty form-params) {:form-params form-params})))
 
-(defn emit-fn-spec
-  [fn-spec params-n-specs]
-  (let [param-spec (apply list `s/cat (mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) params-n-specs))]
+(defn create-vararg-spec-names [name vararg-parspecs] (when vararg-parspecs (map #(keyword (str *ns* "-" name) (str (:param %))) vararg-parspecs)))
+
+(defn emit-vararg-fn-spec
+  [fn-spec norm-parspec vararg-spec-names]
+  (let [keys-spec (when vararg-spec-names (list :varargs (list `s/keys* :opt-un (vec vararg-spec-names))))
+        param-spec (mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) norm-parspec)
+        combined-spec (apply list `s/cat (concat param-spec keys-spec))]
     (if fn-spec
-      (list `s/& param-spec fn-spec)
-      param-spec)))
+      (list `s/& combined-spec fn-spec)
+      combined-spec)))
+
+(defn emit-fn-spec
+  [fn-spec parspec]
+  (let [combined-spec (apply list `s/cat (mapcat (fn [{:keys [param spec]}] [(keyword (str param)) spec]) parspec))]
+    (if fn-spec
+      (list `s/& combined-spec fn-spec)
+      combined-spec)))
+
+(defn emit-defn-params [norm-params vararg-params]
+  (if (not-empty vararg-params)
+    (-> norm-params (conj '&) (conj {:keys (vec vararg-params)}))
+    norm-params))
 
 (defn req-spec [name uri method params-n-specs fn-spec extra {:keys [jsonify-bodies json-resp xf val-xf client]}]
-  (let [params (mapv :param params-n-specs)
-        params-typed (group-by (partial ptype name) params)
-        query-params (set/difference (into #{} (get params-typed nil)) (into #{} (parse-uri uri)))
+  (let [[norm-parspec _ vararg-parspec] (partition-by #(= '& %) (map second params-n-specs))
+        vararg-spec-names (create-vararg-spec-names name vararg-parspec)
+        norm-params (mapv :param norm-parspec)
+        vararg-params (mapv :param vararg-parspec)
+        params (vec (concat norm-params vararg-params))
+        params-typed (group-by (partial ptype name) (concat norm-params vararg-params))
+        query-params (vec (set/difference (into #{} (get params-typed nil)) (into #{} (parse-uri uri))))
         conformed-sym (gensym "__auto__conf")]
-    `[(defn ~name ~params
-        (let [arg-spec# ~(emit-fn-spec fn-spec params-n-specs)
-              ~conformed-sym (s/conform arg-spec# ~params)      ; conform args
+    `[~@(map #(list `s/def %1 (:spec %2)) vararg-spec-names vararg-parspec)
+      (defn ~name ~(emit-defn-params norm-params vararg-params)
+        (let [arg-spec# ~(emit-fn-spec fn-spec (concat norm-parspec vararg-parspec))
+              arg-list# ~params
+              ~conformed-sym (s/conform arg-spec# arg-list#)      ; conform args
               x# (when (= ::s/invalid ~conformed-sym)
-                   (let [ed# (s/explain-data arg-spec# ~params)]
+                   (let [ed# (s/explain-data arg-spec# arg-list#)]
                      (throw (ex-info (str "Call to " ~*ns* "/" ~(str name) " did not conform to spec:\n" (with-out-str (s/explain-out ed#))) ed#))))
               ~@(mapcat #(list % (list val-xf (list 'quote %) (list (keyword (str %)) conformed-sym))) params)]
           (~client
             (merge-maps
-              {:clj-rest-client.core/args ~params
+              {:clj-rest-client.core/args arg-list#
                :clj-rest-client.core/name (symbol ~(str *ns*) ~(str name))
                :query-params              (into {} (filter (comp some? second)) ~(->param-map query-params xf))
                :request-method            ~method
@@ -78,7 +100,7 @@
                  (when json-resp {:as :json})
                  (emit-body-param params-typed jsonify-bodies))
               (or ~extra {})))))
-      (s/fdef ~name :args ~(emit-fn-spec fn-spec params-n-specs))]))
+      (s/fdef ~name :args ~(emit-vararg-fn-spec fn-spec norm-parspec vararg-spec-names))]))
 
 (defn append-uri
   [total-path path-part root?]
@@ -87,7 +109,7 @@
 
 (defn args-vec
   [[type val]]
-  "Return vector of arguments if there are any give at this path part."
+  "Extract arguments vector from path part."
   (if (= type :simple-path) [] (map #(hash-map :param %1 :spec %2) (distinct (filter symbol? (parse-uri (:path val)))) (:args val))))
 
 (defn norm-method

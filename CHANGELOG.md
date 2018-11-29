@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc7
+
+- added kw-varargs
+
 ## 1.0.0-rc6
 
 - client option is evaluted rather than used as a symbol
