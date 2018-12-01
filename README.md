@@ -13,7 +13,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc6"]
+[clj-rest-client "1.0.0-rc7"]
 ```
 
 In your namespace add dependency:
@@ -268,6 +268,10 @@ If true then all requests specify `{:as :json}` and all responses are expected t
 
 Set to `:always`, `:smart`, `:never`. Body params will be ran through serializer if set to `:always`. 
 Option `:smart` will not run string bodies through JSON serializer. Defaults to :smart.
+
+#### defaults
+
+Defaults option should resolve to a map. This map is included in every request map as a baseline. Defaults to `{}`
 
 ### Loading definition
 

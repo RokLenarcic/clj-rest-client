@@ -18,14 +18,15 @@
         ([req] (client (update req :url (partial str url-prefix))))
         ([req respond raise] (client (update req :url (partial str url-prefix)) respond raise))))))
 
-(defmacro defrest-map [definition {:keys [json-responses jsonify-bodies param-transform val-transform client]
-                                   :or {json-responses true jsonify-bodies :smart client identity}}]
+(defmacro defrest-map [definition {:keys [json-responses jsonify-bodies param-transform val-transform client defaults]
+                                   :or {json-responses true jsonify-bodies :smart client identity defaults {}}}]
   (let [cli-sym (gensym "__auto__cli")
         opts-map {:jsonify-bodies jsonify-bodies
-                  :json-resp json-responses
-                  :xf (or param-transform 'identity)
-                  :val-xf (or val-transform `default-val-transform)
-                  :client cli-sym}
+                  :json-resp      json-responses
+                  :defaults       defaults
+                  :xf             (or param-transform 'identity)
+                  :val-xf         (or val-transform `default-val-transform)
+                  :client         cli-sym}
         defs (extract-defs (s/conform ::spec/terms definition) "" [] opts-map true)]
     `(let [~cli-sym ~client]
        ~@defs (quote ~(map second (filter #(= `defn (first %)) defs))))))
@@ -53,6 +54,8 @@
   run string or bytes bodies through JSON serializer. Defaults to :smart.
 
   `:json-responses` If true then all requests specify `{:as :json}` and all responses are expected to be json responses. Default true.
+
+  `:defaults` map of default clj-http params added to every call, defaults to {}
   "
   [definition & {:keys [] :as args}]
   `(defrest-map

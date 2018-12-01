@@ -70,7 +70,7 @@
     (-> norm-params (conj '&) (conj {:keys (vec vararg-params)}))
     norm-params))
 
-(defn req-spec [name uri method params-n-specs fn-spec extra {:keys [jsonify-bodies json-resp xf val-xf client]}]
+(defn req-spec [name uri method params-n-specs fn-spec extra {:keys [jsonify-bodies json-resp xf val-xf client defaults]}]
   (let [[norm-parspec _ vararg-parspec] (partition-by #(= '& %) (map second params-n-specs))
         vararg-spec-names (create-vararg-spec-names name vararg-parspec)
         norm-params (mapv :param norm-parspec)
@@ -90,6 +90,7 @@
               ~@(mapcat #(list % (list val-xf (list 'quote %) (list (keyword (str %)) conformed-sym))) params)]
           (~client
             (merge-maps
+              ~defaults
               {:clj-rest-client.core/args arg-list#
                :clj-rest-client.core/name (symbol ~(str *ns*) ~(str name))
                :query-params              (into {} (filter (comp some? second)) ~(->param-map query-params xf))
