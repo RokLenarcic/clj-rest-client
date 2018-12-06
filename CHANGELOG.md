@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc8
+
+- fixed bug with path parameters
+
 ## 1.0.0-rc7
 
 - added kw-varargs

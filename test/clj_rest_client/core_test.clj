@@ -11,9 +11,6 @@
     struct))
 
 (deftest representations-test
-  (testing "Empty and no param list should result in the same expand"
-    (is (= (derandom-gensym (macroexpand '(defrest {"a" {"b" {GET (t)}}})))
-          (derandom-gensym (macroexpand '(defrest {"a" {"b" {GET (t [])}}}))))))
   (testing "Different method specs should result in the same expand"
     (is (= (derandom-gensym (macroexpand '(defrest {"a" {"b" {GET (t [a any?])}}})))
           (derandom-gensym (macroexpand '(defrest {"a" {"b" {:get (t [a any?])}}})))))

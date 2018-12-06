@@ -111,7 +111,7 @@
 (defn args-vec
   [[type val]]
   "Extract arguments vector from path part."
-  (if (= type :simple-path) [] (map #(hash-map :param %1 :spec %2) (distinct (filter symbol? (parse-uri (:path val)))) (:args val))))
+  (if (= type :simple-path) [] (map #(vector :arg {:param %1 :spec %2}) (distinct (filter symbol? (parse-uri (:path val)))) (:args val))))
 
 (defn norm-method
   [method]

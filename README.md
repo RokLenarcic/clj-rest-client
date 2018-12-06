@@ -13,7 +13,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc7"]
+[clj-rest-client "1.0.0-rc8"]
 ```
 
 In your namespace add dependency:
