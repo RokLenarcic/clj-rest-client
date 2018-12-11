@@ -18,8 +18,8 @@
   "Parse URI into alternating fixed strings and vars."
   [uri]
   (when uri
-    (->> (re-seq #"([^{]+)?(?:\{s*([\w-]+)\s*\})?" uri)
-      (mapcat (fn [[_ txt var-name]] [txt (when var-name (symbol var-name))]))
+    (->> (re-seq #"([^{]+)?(?:\{\s*([\w-]+)\s*\})?" uri)
+      (mapcat (fn [[_ txt var-name]] [txt (when var-name (symbol (.trim ^String var-name)))]))
       (filter some?))))
 
 (defn ptype
@@ -68,7 +68,8 @@
     norm-symbols))
 
 (defn param-map [params-n-specs]
-  (let [[norm-parspec _ vararg-parspec] (partition-by #(= '& %) (map second params-n-specs))]
+  (let [[norm-parspec vararg-parspec] (split-with #(not= '& %) (map second params-n-specs))
+        vararg-parspec (next vararg-parspec)]
     {:symbols (mapv :param (concat norm-parspec vararg-parspec))
      :norm-symbols   (mapv :param norm-parspec)
      :vararg-symbols (mapv :param vararg-parspec)
