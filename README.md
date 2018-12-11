@@ -13,7 +13,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc8"]
+[clj-rest-client "1.0.0-rc9"]
 ```
 
 In your namespace add dependency:
@@ -103,7 +103,7 @@ The endpoint definition is a list or vector (in this example a list), which cont
 - a symbol, name of function to be declared
 - an optional spec that is applied to conformed parameter list
 - an optional argument vector, defaults to `[]`, must contain alternating parameter names and parameter specs. The vector may contain symbol `&`, all argument
-specs following the symbol are added as kw-varargs on the generated function.
+specs following the symbol are added as kw-varargs on the generated function with provided specs wrapped in `nilable`.
 
 - an optional non-vector expression that evaluates to a map, defaults to `{}`, contains additional properties for returned request map, 
 it can use parameters in definition
