@@ -1,4 +1,4 @@
-(defproject clj-rest-client "1.0.0-rc10"
+(defproject clj-rest-client "1.0.0-rc11"
   :description "Thin REST Client layer"
   :url "https://github.com/RokLenarcic/clj-rest-client"
   :license {:name "Eclipse Public License"

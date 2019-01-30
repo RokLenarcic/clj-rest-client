@@ -20,15 +20,16 @@
 
 (defmacro defrest-map [definition {:keys [json-responses jsonify-bodies param-transform val-transform client defaults]
                                    :or {json-responses true jsonify-bodies :smart client identity defaults {}}}]
-  (let [cli-sym (gensym "__auto__cli")
-        opts-map {:jsonify-bodies jsonify-bodies
-                  :json-resp      json-responses
-                  :defaults       defaults
-                  :xf             (or param-transform 'identity)
-                  :val-xf         (or val-transform `default-val-transform)
-                  :client         cli-sym}
+  (let [opts-map {:jsonify-bodies (eval jsonify-bodies)
+                  :json-resp      (eval json-responses)
+                  :defaults       (gensym "__auto__defaults")
+                  :xf             (or (eval param-transform) identity)
+                  :val-xf         (gensym "__auto__valxf")
+                  :client         (gensym "__auto__cli")}
         defs (extract-defs (s/conform ::spec/terms definition) "" [] opts-map true)]
-    `(let [~cli-sym ~client]
+    `(let [~(:client opts-map) ~client
+           ~(:val-xf opts-map) ~(or val-transform `default-val-transform)
+           ~(:defaults opts-map) ~defaults]
        ~@defs (quote ~(map second (filter #(= `defn (first %)) defs))))))
 
 (s/fdef defrest-map :args (s/cat :def ::spec/terms :opts ::spec/options))

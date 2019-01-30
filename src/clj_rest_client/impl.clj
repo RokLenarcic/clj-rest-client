@@ -12,7 +12,7 @@
 (defn ->param-map
   "Transform a sequence of symbols into a map of symbol names to symbols, names transformed by given fn var. E.g. {\"a\" a}."
   [syms param-xf]
-  (zipmap (map (comp str (var-get (resolve param-xf))) syms) syms))
+  (zipmap (map (comp str param-xf) syms) syms))
 
 (defn parse-uri
   "Parse URI into alternating fixed strings and vars."

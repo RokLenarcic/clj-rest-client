@@ -13,7 +13,7 @@ This library requires clojure 1.9.0 or higher.
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0-rc10"]
+[clj-rest-client "1.0.0-rc11"]
 ```
 
 In your namespace add dependency:
@@ -38,9 +38,9 @@ You can then run the request by using `clj-http`:
 (client/request (get-person-by-id 3))
 ```
 
-The function is instrumented, and will raise an error if parameters aren't valid by spec.
+The function is spec instrumented, and will raise an error if parameters aren't valid by spec.
 
-You can make the http call immediate by setting it as client function to API definition:
+You can make the http call immediate by adding http request executing function as a client function to API definition:
 
 ```clojure
 (defrest {"http://example.com" {"person" {GET (get-person-by-id [id pos-int?])}}} :client client/request)
@@ -50,7 +50,7 @@ You can make the http call immediate by setting it as client function to API def
 
 ## Usage
 
-A description of features, options and solutions for common needs. 
+A description of features, options and solutions for common use-cases.
 
 ### Definition format
 

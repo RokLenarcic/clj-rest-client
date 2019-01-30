@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0-rc11
+
+- make optional parameters less restricted
+
 ## 1.0.0-rc10
 
 - fix a couple of bugs
