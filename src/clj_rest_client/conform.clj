@@ -22,20 +22,24 @@
 
 (defn parse-dt
   "Converts temporal accessor to java.time object depending on the availability of data:
+  - Instant
   - LocalDate
   - LocalTime, OffsetTime
   - LocalDateTime, ZonedDateTime
   - YearMonth
   - Year"
   [^TemporalAccessor parsed]
-  (let [[time date month zone] (map #(.isSupported parsed %) [ChronoField/NANO_OF_DAY ChronoField/EPOCH_DAY ChronoField/MONTH_OF_YEAR ChronoField/OFFSET_SECONDS])]
+  (let [[time date month zone instant] (map #(.isSupported parsed %) [ChronoField/NANO_OF_DAY ChronoField/EPOCH_DAY ChronoField/MONTH_OF_YEAR ChronoField/OFFSET_SECONDS ChronoField/INSTANT_SECONDS])]
+    (println parsed time date month zone)
     (if time
       (if date
         (if zone (ZonedDateTime/from parsed) (LocalDateTime/from parsed))
         (if zone (OffsetTime/from parsed) (LocalTime/from parsed)))
-      (if date
-        (LocalDate/from parsed)
-        (if month (YearMonth/from parsed) (Year/from parsed))))))
+      (if instant
+        (Instant/from parsed)
+        (if date
+          (LocalDate/from parsed)
+          (if month (YearMonth/from parsed) (Year/from parsed)))))))
 
 (defmacro ->date-format
   "Conformer for java.util.Date and java.time objects using the supplied formatter.
@@ -51,7 +55,7 @@
                 (conform* [spec# x#]
                   (cond
                     (nil? x#) nil
-                    (inst? x#) (.format ~formatter (OffsetDateTime/ofInstant (Instant/ofEpochMilli (.getTime ^Date x#)) ZoneOffset/UTC))
+                    (instance? Date x#) (.format ~formatter (OffsetDateTime/ofInstant (Instant/ofEpochMilli (.getTime ^Date x#)) ZoneOffset/UTC))
                     (instance? TemporalAccessor x#) (.format ~formatter x#)
                     :default ::s/invalid))
                 (unform* [spec# y#]

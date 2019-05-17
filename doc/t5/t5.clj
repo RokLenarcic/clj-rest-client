@@ -1,0 +1,39 @@
+(ns t5.t5
+  (:require [clj-rest-client.core :refer [defrest]]
+            [clj-rest-client.conform :refer :all]
+            [clj-http.client :as client]
+            [clojure.spec.alpha :as s])
+  (:import (java.time.format DateTimeFormatter)))
+
+(s/def ::since (->date-format (DateTimeFormatter/ISO_INSTANT)))
+(s/def ::all-since #(or (not= (:state %) "all") (:since %)))
+(s/def ::milestone (s/nonconforming (s/or :i int? :s string?)))
+(s/def ::issue-state-filter #{"open" "closed" "all"})
+(s/def ::labels (s/and (s/coll-of string?) (s/conformer #(clojure.string/join "," %))))
+(s/def ::sort-dir #{"asc" "desc"})
+
+(defrest
+  {["users/{username}/orgs" string?] {GET (list-user-organizations [])}
+   "organizations" {GET (list-organizations [since (s/nilable pos-int?)])}
+   ["repos/{owner}/{repo}" string? string?]
+   {"assignees" {GET (get-assignees [])}
+    "issues" {GET (list-repo-issues ::all-since [&
+                                                 milestone ::milestone
+                                                 state ::issue-state-filter
+                                                 assignee string?
+                                                 creator string?
+                                                 mentioned string?
+                                                 labels ::labels
+                                                 sort #{"created" "updated" "comments"}
+                                                 direction ::sort-dir
+                                                 since ::since])
+              ["{issue_no}" pos-int?] {GET (get-issue [])
+                                       "assignees" {POST (add-issue-assignees [^:key assignees (s/coll-of string?)])
+                                                    DELETE (remove-issue-assignees [^:key assignees (s/coll-of string?)])}}}}})
+
+(defn git-client [url user pass]
+  (fn [req]
+    (-> req
+      (assoc :basic-auth [user pass])
+      (update :url #(str url "/" %))
+      client/request)))

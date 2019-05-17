@@ -1,13 +1,12 @@
 (ns clj-rest-client.impl
   (:require [cheshire.core :as json]
+            [meta-merge.core :refer [meta-merge]]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
             [clojure.string :refer [starts-with?]]
             [clojure.spec.alpha :as s]
             [clojure.set :as set])
   (:import (java.net URL)))
-
-(defn merge-maps [& values] (if (every? map? values) (apply merge-with merge-maps values) (last values)))
 
 (defn ->param-map
   "Transform a sequence of symbols into a map of symbol names to symbols, names transformed by given fn var. E.g. {\"a\" a}."
@@ -25,7 +24,7 @@
 (defn ptype
   "Extract parameter type based on metadata tags"
   [name sym]
-  (let [tags #{:+ :body :form :form-map}
+  (let [tags #{:+ :body :form :form-map :key}
         param-tags (filter tags (keys (meta sym)))]
     (if (> (count param-tags) 1)
       (throw (ex-info (str "Endpoint " name " param " sym " has more than one param type tag: " param-tags) {}))
@@ -33,18 +32,31 @@
 
 (defn emit-body-param
   "Emit body param map or nil, based on by-type param map"
-  [params-typed jsonify-bodies]
+  [params-typed jsonify-bodies json-opts]
   (when-let [bparam (first (:body params-typed))]
     (condp = jsonify-bodies
-      :always `{:body (when (some? ~bparam) (json/generate-string ~bparam)) :content-type :json}
-      :smart `{:body         (if (or (bytes? ~bparam) (string? ~bparam)) ~bparam (when (some? ~bparam) (json/generate-string ~bparam)))
+      :always `{:body (when (some? ~bparam) (json/generate-string ~bparam ~json-opts)) :content-type :json}
+      :smart `{:body (when (some? ~bparam)
+                       (if (or (bytes? ~bparam) (string? ~bparam)) ~bparam (json/generate-string ~bparam ~json-opts)))
                :content-type (if (bytes? ~bparam) :bytes :json)}
       :never `{:body ~bparam})))
+
+(defn emit-key-param
+  "Emit key params as JSON body"
+  [params-typed param-xf json-opts]
+  (when (:key params-typed)
+    {:body (list `json/generate-string
+             (->param-map (:key params-typed) param-xf)
+             json-opts)
+     :content-type :json}))
+
+(defn emit-form-map-params [params-typed val-xf]
+  (map #(hash-map :form-params (list val-xf (list 'quote %) %)) (:form-map params-typed)))
 
 (defn emit-form-params
   "Emit map of form params based on by-type param map"
   [params-typed param-xf]
-  (let [form-params (apply merge {} (->param-map (:form params-typed) param-xf) (:form-map params-typed))]
+  (let [form-params (->param-map (:form params-typed) param-xf)]
     (when (not-empty form-params) {:form-params form-params})))
 
 (defn create-vararg-spec-names [fn-name {:keys [vararg-symbols]}] (when vararg-symbols (map #(keyword (str *ns* "-" fn-name) (str %)) vararg-symbols)))
@@ -76,35 +88,42 @@
      :norm-specs    (mapv :spec norm-parspec)
      :vararg-specs  (mapv #(list `s/nilable (:spec %)) vararg-parspec)}))
 
-(defn req-spec [fn-name uri method params-n-specs fn-spec extra {:keys [jsonify-bodies json-resp xf val-xf client defaults]}]
-  (let [params (param-map params-n-specs)
+(defn req-spec [fn-name uri method params-n-specs fn-spec extra
+                {:keys [jsonify-bodies json-resp xf val-xf client defaults name-xf json-opts]}]
+  (let [fn-name (name-xf fn-name)
+        params (param-map params-n-specs)
         vararg-spec-names (create-vararg-spec-names fn-name params)
         params-typed (group-by (partial ptype fn-name) (:symbols params))
         query-params (vec (set/difference (into #{} (get params-typed nil)) (into #{} (parse-uri uri))))
         conformed-sym (gensym "__auto__conf")]
+    (when (> (count (get params-typed :body [])) 1) (throw (ex-info (str "More than one body param in function " fn-name) {})))
+    (when (and (:body params-typed) (:key params-typed))
+      (throw (ex-info (str "Cannot have both body and key params in function " fn-name) {})))
     `[~@(map #(list `s/def %1 %2) vararg-spec-names (:vararg-specs params))
-      (defn ~fn-name ~(emit-defn-params params)
+      (defn ~(symbol fn-name) ~(emit-defn-params params)
         (let [arg-spec# ~(emit-fn-spec fn-spec params)
               arg-list# ~(:symbols params)
               ~conformed-sym (s/conform arg-spec# arg-list#)      ; conform args
               x# (when (= ::s/invalid ~conformed-sym)
                    (let [ed# (s/explain-data arg-spec# arg-list#)]
-                     (throw (ex-info (str "Call to " ~*ns* "/" ~(str fn-name) " did not conform to spec:\n" (with-out-str (s/explain-out ed#))) ed#))))
+                     (throw (ex-info (str "Call to " ~*ns* "/" ~fn-name " did not conform to spec:\n" (with-out-str (s/explain-out ed#))) ed#))))
               ~@(mapcat #(list % (list val-xf (list 'quote %) (list (keyword (str %)) conformed-sym))) (:symbols params))]
           (~client
-            (merge-maps
+            (meta-merge
               ~defaults
+              ~(when json-resp {:as :json})
+              ~@(emit-form-map-params params-typed val-xf)
               {:clj-rest-client.core/args arg-list#
-               :clj-rest-client.core/name (symbol ~(str *ns*) ~(str fn-name))
+               :clj-rest-client.core/name (symbol ~(str *ns*) ~fn-name)
                :query-params              (into {} (filter (comp some? second)) ~(->param-map query-params xf))
                :request-method            ~method
                :url                       (str ~@(parse-uri uri))}
               ~(merge {}
                  (emit-form-params params-typed xf)
-                 (when json-resp {:as :json})
-                 (emit-body-param params-typed jsonify-bodies))
+                 (emit-body-param params-typed jsonify-bodies json-opts)
+                 (emit-key-param params-typed xf json-opts))
               (or ~extra {})))))
-      (s/fdef ~fn-name :args ~(emit-vararg-fn-spec fn-spec params vararg-spec-names))]))
+      (s/fdef ~(symbol fn-name) :args ~(emit-vararg-fn-spec fn-spec params vararg-spec-names))]))
 
 (defn append-uri
   [total-path path-part root?]
@@ -119,18 +138,24 @@
 (defn norm-method
   [method]
   "Convert different representation of HTTP method to clj-http standard, which is lowercased keyword."
-  (if (symbol? method) (keyword (.toLowerCase (str method))) method))
+  (keyword (.toLowerCase (name method))))
 
 (defn extract-defs [structure total-path total-args opts root?]
   "Traverse structure and emit a sequence of defn forms"
   (mapcat
     (fn [{:keys [method def path-part more]}]
       (if path-part
-        (if (map? more)
-          (extract-defs more (append-uri total-path path-part root?) (into total-args (args-vec path-part)) opts false)
-          (throw (ex-info (str "Path " (append-uri total-path path-part root?) " must point to map not " more) {})))
+        (let [[mtype mval] more]
+          (extract-defs
+            (if (= :terms mtype)
+              mval
+              {(:default-method opts) {:method (:default-method opts) :def mval}})
+            (append-uri total-path path-part root?)
+            (into total-args (args-vec path-part))
+            opts
+            false))
         (let [{:keys [name fn-spec args extra]} def]
-          (req-spec name total-path (norm-method method) (into total-args args) fn-spec extra opts))))
+          (req-spec (str name) total-path (norm-method method) (into total-args args) fn-spec extra opts))))
     (vals structure)))
 
 (defn load-from-url [name]

@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 1.0.0
+
+- updated documentation
+- added function for function symbol transformation
+- allow endpoint spec directly on path, which now defaults to a get spec, with parameter for changing that
+- use meta-merge instead of homebrew deep merge
+- enable use of syntax quoting
+- fix date parse unform
+
 ## 1.0.0-rc11
 
 - make optional parameters less restricted
