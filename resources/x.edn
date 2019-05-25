@@ -1,0 +1,3 @@
+{:x #crc/ref :y
+ :y [a b c]
+ #crc/kw :io/y 1}

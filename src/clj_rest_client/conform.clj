@@ -30,7 +30,6 @@
   - Year"
   [^TemporalAccessor parsed]
   (let [[time date month zone instant] (map #(.isSupported parsed %) [ChronoField/NANO_OF_DAY ChronoField/EPOCH_DAY ChronoField/MONTH_OF_YEAR ChronoField/OFFSET_SECONDS ChronoField/INSTANT_SECONDS])]
-    (println parsed time date month zone)
     (if time
       (if date
         (if zone (ZonedDateTime/from parsed) (LocalDateTime/from parsed))

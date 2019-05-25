@@ -12,7 +12,6 @@
 (deftest basic-endpoints
   (testing "Basic get endpoint structure"
     (is (= {:request-method :get
-            :query-params {}
             :url "abc"
             :as :json
             ::c/args [] ::c/name `get-0} (get-0)))
@@ -37,11 +36,10 @@
             :as :json
             ::c/args [11 22 33 44] ::c/name `get-3} (get-3 11 22 33 44)))
     (is (= {:request-method :get
-            :query-params {}
             :url "xxx"
             :as :json
             :body "{\"key-param\":33,\"key-param2\":44}"
-            :form-params {"x" 11 :form-params-x 22}
+            :form-params {"x" 11 "form-params-x" 22}
             :content-type :json
             ::c/args [11 {:form-params-x 22} 33 44] ::c/name `get-4}
           (get-4 11 {:form-params-x 22} 33 44)))))
