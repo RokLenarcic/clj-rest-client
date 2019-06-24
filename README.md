@@ -8,7 +8,7 @@ Very light-weight.
 
 ## Quick start
 
-This library requires clojure 1.9.0 or higher.
+This library requires Clojure 1.9.0 or higher.
 
 Add to dependencies:
 
@@ -16,7 +16,7 @@ Add to dependencies:
 [clj-rest-client "1.0.0"]
 ```
 
-In your namespace add dependency:
+In your namespace add the dependency:
 
 ```clojure
 (ns example.core
@@ -38,9 +38,9 @@ You can then run the request by using `clj-http`'s request function:
 (client/request (get-person-by-id 3))
 ```
 
-The function is spec instrumented, and will raise an error if parameters aren't valid by spec.
+The function is spec instrumented and will raise an error if parameters aren't valid by spec.
 
-You can make the http call immediate by adding http request executing function as a client function to API definition:
+You can make the HTTP call immediate by adding an HTTP request executing function as a client function to API definition:
 
 ```clojure
 (defrest {"http://example.com" {"person" {GET (get-person-by-id [id pos-int?])}}} :client client/request)
@@ -61,15 +61,16 @@ A series of tutorials using GitHub v3 API as basis:
 #### [Tutorial 5 - Varargs parameters](doc/t5/t5.md)
 #### [Tutorial 6 - Splitting definition](doc/t6/t6.md)
 #### [Tutorial 7 - A different way to describe API](doc/t7/t7.md)
-#### [Tutorial 8 - Fun with paging](doc/t7/t7.md)
 
 A description of features, options and solutions for common use-cases.
+
+**This framework allows multiple different ways to specify things so I urge you to read all the tutorials**
 
 ### Definition format
 
 #### Paths and overall structure
 
-Definition is a nested map where keys are string paths or symbol, keyword HTTP methods.
+The definition is a nested map where keys are string paths or symbols/keywords HTTP methods.
 
 ```clojure
 {"path"
@@ -79,12 +80,12 @@ Definition is a nested map where keys are string paths or symbol, keyword HTTP m
 ``` 
 
 This nested structure defines endpoints for GET and POST methods at "/path". Path parts should not start or end with `/`.
-It also continues nesting and defines endpoint for "/path/subpath" for DELETE method.
+It also continues nesting and defines an endpoint for "/path/subpath" for DELETE method.
 
 Values for path parts are another path map, values for methods are endpoint function definitions 
 
 
-Symbol or keyword keys define signature for a HTTP method for this subpath. E.g.
+Symbol or keyword keys define the signature for an HTTP method for this subpath. E.g.
 
 ```clojure
 (defrest {"http://example.com" 
@@ -95,15 +96,15 @@ Symbol or keyword keys define signature for a HTTP method for this subpath. E.g.
 
 Here the GET symbol key is followed by an endpoint definition, which defines a function for GET method for `http://example.com/person` subpath.
 
-Method can be specified equally as `GET` or `get` or `:get`.
+The method can be specified equally as `GET` or `get` or `:get`.
 
 The string keys in the nested definition map are there to denote subpaths. They shouldn't start or end with `/`.
 
-**In this particular example the root string key also defines protocol, server, port.**
+**In this particular example the root string key also defines the protocol, server, port.**
 
 **This is in no way required. You can define a REST with relative paths only.**
 
-It will be demonstated later how to approach using definitions without predefined host.
+It is demonstrated in our tutorials how to approach using definitions without a pre-defined host.
 
 #### Endpoint definition
 
@@ -113,17 +114,17 @@ It will be demonstated later how to approach using definitions without predefine
 
 The endpoint definition is a list or vector (in this example a list), which contains the following:
 
-- a symbol, name of function to be declared
-- an optional spec that is applied to conformed parameter list
-- an argument vector, must contain alternating parameter names and parameter specs. The vector may contain symbol `&`, all argument
+- a symbol, name of a function to be declared
+- an optional spec that is applied to the conformed parameter list
+- an argument vector; must contain alternating parameter names and parameter specs. The vector may contain symbol `&`, all argument
 specs following the symbol are added as kw-varargs on the generated function with provided specs wrapped in `nilable`.
 
 - an optional non-vector expression that evaluates to a map, defaults to `{}`, contains additional properties for returned request map, 
-it can use parameters in definition
+it can use parameters in the definition
 
 In this example, the spec applied to parameter list `[id time]` will be `(s/& (s/cat :id pos-int? :time inst?) any?)`.
 
-Due to optionals the following definition is also legal:
+Due to optional parts of the definition, the following definition is also legal:
 
 ```clojure
 {GET (get-all [])}
@@ -131,7 +132,7 @@ Due to optionals the following definition is also legal:
 
 #### Default method
 
-If the endpoint is the only one at a subpath you can skip specifying the method and it gaing the default method:
+If the endpoint is the only one at a subpath you can skip specifying the method and it gains the default method:
 
 ```clojure
 (get-all [])
@@ -141,9 +142,9 @@ The method given to such endpoint definition is set by `:default-method` `defres
 
 ### defrest options
 
-The macro support options as varargs key-values.
+The macro supports options as varargs key-values.
 
-Here's the options with defaults
+Here are the options with their defaults:
 
 ```clojure
 (defrest {} :param-transform identity :json-responses true :jsonify-bodies :smart :post-process-fn identity)
@@ -151,8 +152,7 @@ Here's the options with defaults
 
 #### post-process-fn
 
-This option specifies function that is invoked with clj-http maps generated by api functions. Defaults to identity.
-This is a good place to put your http client function if you want requests to be executed immediately.
+This option specifies a function that is invoked after generating clj-http in API function. Defaults to identity.
 
 There are benefits to separating request generation and request execution, thus the default being identity function.
 
@@ -164,18 +164,18 @@ Sets the default method for endpoints with no method specified, defaults to `:ge
 
 This option specifies function that is used to transform query parameter names: parameter (symbol) -> query parameter name (string).
 
-This is useful to transform clojure's kebab-case symbol names to camel case param names.
+This is useful to transform Clojure's kebab-case symbol names to camel case param names.
 
 #### val-transform
 
-This option specifies a function that is applied to all arguments after argument spec and conform and before being embedded into
-request map. It's a function of two arguments: param name symbol and param value, returns new param value. 
+This option specifies a function that is applied to all arguments after argument spec and conforming and before being embedded into
+the request map. It's a function of two arguments: param name symbol and param value and returns the new param value. 
 
 Default implementation replaces keyword params with their name string. It's available (for delegating purposes) as `default-val-transform` in core namespace.
 
 #### json-responses
 
-If true then all requests specify `{:as :json}` and all responses are expected to be json responses. Default true.
+If true then all requests specify `{:as :json}` and all responses are expected to be json responses. Defaults to true.
 
 #### jsonify-bodies
 
@@ -184,8 +184,20 @@ Option `:smart` will not run string bodies through JSON serializer. Defaults to 
 
 #### defaults
 
-Defaults option should resolve to a map. This map is included in every request map as a baseline. Defaults to `{}`
+The `defaults` option should resolve to a map. This map is included in every request map as a baseline. Defaults to `{}`
 
+#### edn-readers
+
+If the definition is a string (link to EDN file), then this parameter specifies
+additional readers besides the default readers of `#crc/ns` and `#crc/ref`.
+
+#### edn-key
+
+When loading EDN use a specific key in loaded EDN, useful when using refs.
+
+#### fdef?
+
+Emit a fdef for generated functions, defaults to false.
 
 ## License
 

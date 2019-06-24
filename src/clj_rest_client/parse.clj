@@ -13,7 +13,7 @@
   (s/& vector? (s/* (s/alt :vararg ::vararg-mark :arg ::arg))))
 
 (s/def ::endpointdef
-  (s/spec (s/cat :name ::kw-or-sym
+  (s/spec (s/cat :fn-name ::kw-or-sym
             :fn-spec (s/? any?)
             :args ::args-vect
             :extra (s/? (complement vector?)))))
@@ -116,6 +116,6 @@
              (into total-args (args-vec path-part))
              default-method
              false))
-         (let [{:keys [name fn-spec args extra]} def]
-           [(endpoint-meta (str name) total-path method (into total-args args) fn-spec extra)])))
+         (let [{:keys [fn-name fn-spec args extra]} def]
+           [(endpoint-meta (name fn-name) total-path method (into total-args args) fn-spec extra)])))
      (vals structure))))

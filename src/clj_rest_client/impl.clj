@@ -76,7 +76,7 @@
 (defn emit-spec-check
   "Emit let vector elements that will conform input to spec and save into symbol"
   [{::parse/keys [params fn-name fn-spec]} conformed-sym]
-  (let [specs (concat (:norm-specs params) (:vararg-specs params))
+  (let [specs (concat (:norm-specs params) (map #(list `s/nilable %) (:vararg-specs params)))
         cat-spec (apply list `s/cat (mapcat (fn [param spec] [(keyword param) spec]) (:names params) specs))]
     `[arg-spec# ~(if fn-spec (list `s/& cat-spec fn-spec) cat-spec)
       arg-list# ~(mapv symbol (:names params))
@@ -94,7 +94,7 @@
         cat-spec (apply list `s/cat (concat param-spec keys-spec))]
     (concat
       (map #(list `s/def %1 %2) vararg-spec-names vararg-specs)
-      [(s/fdef ~(symbol fn-name) :args ~(if fn-spec (list `s/& cat-spec fn-spec) cat-spec))])))
+      [`(s/fdef ~(symbol fn-name) :args ~(if fn-spec (list `s/& cat-spec fn-spec) cat-spec))])))
 
 (defn serialize-body [req jsonify-bodies json-opts]
   (if (some? (:body req))
@@ -116,7 +116,7 @@
    {:keys [xf fdef? post-process-fn defaults json-resp? jsonify-bodies json-opts val-xf]}]
   (let [conformed-sym (gensym "__auto__conf")]
     `[~@(when fdef? (emit-fdef parsed))
-      (defn ~(symbol fn-name) ~(emit-defn-params parsed)
+      (defn ~(symbol (name fn-name)) ~(emit-defn-params parsed)
         (let [~@(emit-spec-check parsed conformed-sym)
               ~@(destructure-conformed parsed conformed-sym val-xf)]
           (~post-process-fn

@@ -10,10 +10,10 @@
 
 
 (defrest
-  {["users/{username}/orgs" string?] {GET (list-user-organizations [])}
-   "organizations" {GET (list-organizations [since (s/nilable pos-int?)])}
+  {["users/{username}/orgs" string?] (list-user-organizations [])
+   "organizations" (list-organizations [since (s/nilable pos-int?)])
    ["repos/{owner}/{repo}" string? string?]
-   {"assignees" {GET (get-assignees [])}
+   {"assignees" (list-assignees [])
     "issues" {GET (list-repo-issues ::all-since [state (s/nilable string?) since (s/nilable ::since)])
               ["{issue_no}" pos-int?] {GET (get-issue [])
                                        "assignees" {POST (add-issue-assignees [^:key assignees (s/coll-of string?)])

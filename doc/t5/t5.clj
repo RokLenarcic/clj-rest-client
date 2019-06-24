@@ -13,10 +13,10 @@
 (s/def ::sort-dir #{"asc" "desc"})
 
 (defrest
-  {["users/{username}/orgs" string?] {GET (list-user-organizations [])}
-   "organizations" {GET (list-organizations [since (s/nilable pos-int?)])}
+  {["users/{username}/orgs" string?] (list-user-organizations [])
+   "organizations" (list-organizations [since (s/nilable pos-int?)])
    ["repos/{owner}/{repo}" string? string?]
-   {"assignees" {GET (get-assignees [])}
+   {"assignees" (list-assignees [])
     "issues" {GET (list-repo-issues ::all-since [&
                                                  milestone ::milestone
                                                  state ::issue-state-filter

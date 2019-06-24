@@ -17,17 +17,22 @@
     (keyword real-ns (name kw))))
 
 (def default-readers
-  {'crc/kw kw-ns
+  {'crc/ns kw-ns
    'crc/ref ref-obj})
 
-(defn resolve-refs [ds]
-  (walk/postwalk #(if (instance? Ref %) ((:key %) ds) %) ds))
+(defn resolve-refs [all ds]
+  (walk/postwalk #(if (instance? Ref %) (resolve-refs all ((:key %) all)) %) ds))
 
-(defn load-from-url [name readers edn-key]
-  ; Add -Djava.protocol.handler.pkgs=org.my.protocols to enable custom protocols
+(defn load-from-url
+  "Load EDN denoted by the name parameter, using the map of extra readers, and then
+  retrieve the key edn-key
+
+  Add -Djava.protocol.handler.pkgs=org.my.protocols to enable custom protocols"
+  [name readers edn-key]
   (when name
     (let [edn
           (edn/read-string {:readers (merge default-readers readers)}
             (slurp (if (starts-with? name "classpath:") (io/resource (subs name 10)) (URL. name))))
-          resolved (resolve-refs edn)]
+          resolved (resolve-refs edn edn)]
+
       (if edn-key (edn-key resolved) resolved))))

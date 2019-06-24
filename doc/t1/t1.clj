@@ -5,5 +5,5 @@
 
 (defrest
   {"https://api.github.com"
-   {"organizations" {GET (list-organizations [since (s/nilable pos-int?)] {:basic-auth ["user" "personal-token"]})}}})
+   {"organizations" (list-organizations [since (s/nilable pos-int?)] {:basic-auth ["user" "personal-token"]})}})
 

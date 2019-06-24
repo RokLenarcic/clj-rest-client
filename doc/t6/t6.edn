@@ -1,0 +1,23 @@
+{:issue-endpoints
+ {GET (get-issue [])
+  "assignees" {POST (add-issue-assignees [^:key assignees (s/coll-of string?)])
+               DELETE (remove-issue-assignees [^:key assignees (s/coll-of string?)])}}
+ :repo-endpoints
+ {"assignees" (list-assignees [])
+  "issues" {GET (list-repo-issues #crc/ns :all-since
+                  [&
+                   milestone #crc/ns :milestone
+                   state #crc/ns :issue-state-filter
+                   assignee string?
+                   creator string?
+                   mentioned string?
+                   labels #crc/ns :labels
+                   sort #{"created" "updated" "comments"}
+                   direction #crc/ns :sort-dir
+                   since #crc/ns :since])
+            ["{issue_no}" pos-int?] #crc/ref :issue-endpoints}}
+ :api-map
+ {"organizations" (list-organizations [since (s/nilable pos-int?)])
+  ["users/{username}/orgs" string?] (list-user-organizations [])
+  ["repos/{owner}/{repo}" string? string?] #crc/ref :repo-endpoints}}
+

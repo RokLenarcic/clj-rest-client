@@ -46,7 +46,7 @@
   You can supply time object constructor fn for unform. This fn is called with java.time.TemporalAccessor parse object.
   Defaults to `clj-rest-client.conform/parse-dt` (see its docs)."
   ([formatter]
-    `(->date-format ~formatter parse-dt))
+   `(->date-format ~formatter parse-dt))
   ([formatter parse-type-constructor]
    `(letfn [(create-spec# [param-gfn#]
               (reify

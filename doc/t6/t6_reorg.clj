@@ -18,24 +18,24 @@
                  DELETE (remove-issue-assignees [^:key assignees (s/coll-of string?)])}})
 
 (def repo-endpoints
-  `{"assignees" {GET (get-assignees [])}
-    "issues" {GET (list-repo-issues ::all-since
-                    [&
-                     milestone ::milestone
-                     state ::issue-state-filter
-                     assignee string?
-                     creator string?
-                     mentioned string?
-                     labels ::labels
-                     sort #{"created" "updated" "comments"}
-                     direction ::sort-dir
-                     since ::since])
-              ["{issue_no}" pos-int?] ~issue-endpoints}})
+  {"assignees" '(list-assignees [])
+   "issues" {'GET '(list-repo-issues ::all-since
+                     [&
+                      milestone ::milestone
+                      state ::issue-state-filter
+                      assignee string?
+                      creator string?
+                      mentioned string?
+                      labels ::labels
+                      sort #{"created" "updated" "comments"}
+                      direction ::sort-dir
+                      since ::since])
+             ["{issue_no}" pos-int?] issue-endpoints}})
 
 (def api-map
-  `{"organizations" {GET (list-organizations [since (s/nilable pos-int?)])}
-    ["users/{username}/orgs" string?] {GET (list-user-organizations [])}
-    ["repos/{owner}/{repo}" string? string?] ~repo-endpoints})
+  {"organizations" '(list-organizations [since (s/nilable pos-int?)])
+   ["users/{username}/orgs" string?] '(list-user-organizations [])
+   ["repos/{owner}/{repo}" string? string?] repo-endpoints})
 
 (defrest api-map)
 

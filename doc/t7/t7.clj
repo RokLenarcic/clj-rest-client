@@ -32,8 +32,8 @@
     "users/{username}/orgs" (list-user-organizations [username string?])
     "orgs/{org}/issues" (list-org-issues [org string? ~@issue-query])
     "organizations" (list-organizations [since (s/nilable pos-int?)])
-    "repos/{owner}/{repo}/branches" (get-repo-branches [owner string? repo string?])
-    "repos/{owner}/{repo}/assignees" (get-assignees [owner string? repo string?])
+    "repos/{owner}/{repo}/branches" (list-repo-branches [owner string? repo string?])
+    "repos/{owner}/{repo}/assignees" (list-assignees [owner string? repo string?])
     "repos/{owner}/{repo}/issues" (list-repo-issues
                                     ::all-since ~(list-params
                                                    '[owner string?
@@ -50,11 +50,11 @@
     "repos/{owner}/{repo}/issues/{issue-no}" (get-issue [owner string? repo string? issue-no pos-int?])})
 
 (def post-api-map
-  `{"repos/{owner}/{repo}/issues/{issue-no}/assignees"
+  '{"repos/{owner}/{repo}/issues/{issue-no}/assignees"
     (add-issue-assignees [owner string? repo string? issue-no pos-int? ^:key assignees (s/coll-of string?)])})
 
 (def delete-api-map
-  `{"repos/{owner}/{repo}/issues/{issue-no}/assignees"
+  '{"repos/{owner}/{repo}/issues/{issue-no}/assignees"
     (remove-issue-assignees [owner string? repo string? issue-no pos-int? ^:key assignees (s/coll-of string?)])})
 
 (defrest get-api-map :default-method :get)

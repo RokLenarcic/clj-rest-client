@@ -5,10 +5,10 @@
             [clojure.spec.alpha :as s]))
 
 (defrest
-  {["users/{username}/orgs" string?] {GET (list-user-organizations [])}
-   "organizations" {GET (list-organizations [since (s/nilable pos-int?)])}
+  {["users/{username}/orgs" string?] (list-user-organizations [])
+   "organizations" (list-organizations [since (s/nilable pos-int?)])
    ["repos/{owner}/{repo}" string? string?]
-   {"assignees" {GET (get-assignees [])}
+   {"assignees" (list-assignees [])
     "issues" {["{issue_no}" pos-int?] {GET (get-issue [])
                                        "assignees" {POST (add-issue-assignees [^:key assignees (s/coll-of string?)])
                                                     DELETE (remove-issue-assignees [^:key assignees (s/coll-of string?)])}}}}})
