@@ -2,7 +2,8 @@
   (:require [cheshire.core :as json]
             [meta-merge.core :refer [meta-merge]]
             [clj-rest-client.parse :as parse]
-            [clojure.spec.alpha :as s])
+            [malli.core :as m]
+            [malli.error :as me])
   (:import (clojure.lang Named)))
 
 (defn make-fragment
@@ -73,28 +74,43 @@
       (-> (mapv symbol norm-names) (conj '&) (conj {:keys (mapv symbol vararg-names)}))
       (mapv symbol norm-names))))
 
-(defn emit-spec-check
-  "Emit let vector elements that will conform input to spec and save into symbol"
-  [{::parse/keys [params fn-name fn-spec]} conformed-sym]
-  (let [specs (concat (:norm-specs params) (map #(list `s/nilable %) (:vararg-specs params)))
-        cat-spec (apply list `s/cat (mapcat (fn [param spec] [(keyword param) spec]) (:names params) specs))]
-    `[arg-spec# ~(if fn-spec (list `s/& cat-spec fn-spec) cat-spec)
-      arg-list# ~(mapv symbol (:names params))
-      ~conformed-sym (s/conform arg-spec# arg-list#)      ; conform args
-      x# (when (= ::s/invalid ~conformed-sym)
-           (let [ed# (s/explain-data arg-spec# arg-list#)]
-             (throw (ex-info (str "Call to " ~*ns* "/" ~fn-name " did not conform to spec:\n" (with-out-str (s/explain-out ed#))) ed#))))]))
+(defn xf-param [schema ns-sym fn-name param-name transfomer schema-registry val]
+  (let [ed (m/explain schema val {:registry schema-registry})]
+    (when ed
+      (println ed)
+      (throw (ex-info (str "Parameter \"" param-name "\" in call to "
+                           ns-sym "/" fn-name
+                           " did not conform to schema:\n"
+                           (me/humanize ed {:wrap :message}))
+                      {:type :clj-rest-client/arg-schema-error
+                       :explanation ed})))
+    (if transfomer
+      (m/encode schema val {:registry schema-registry} transfomer)
+      val)))
 
-(defn emit-fdef
-  [{::parse/keys [params fn-name fn-spec]}]
-  (let [{:keys [vararg-names vararg-specs norm-specs norm-names]} params
-        vararg-spec-names (map #(keyword (str *ns* "-" fn-name) %) vararg-names)
-        keys-spec (when vararg-names (list :varargs (list `s/keys* :opt-un (vec vararg-spec-names))))
-        param-spec (mapcat (fn [param spec] [(keyword param) spec]) norm-names norm-specs)
-        cat-spec (apply list `s/cat (concat param-spec keys-spec))]
-    (concat
-      (map #(list `s/def %1 %2) vararg-spec-names vararg-specs)
-      [`(s/fdef ~(symbol fn-name) :args ~(if fn-spec (list `s/& cat-spec fn-spec) cat-spec))])))
+(defn emit-schema-check
+  "Emit let vector elements that will conform input to schema and save into symbol"
+  [{::parse/keys [params fn-name]} transformer-sym schema-registry-sym]
+  (let [schemas (concat (:norm-schemas params) (map #(vector :maybe %) (:vararg-schemas params)))]
+    (mapcat #(vector (symbol %1)
+                     (list `xf-param %2 *ns* fn-name %1 transformer-sym schema-registry-sym (symbol %1)))
+            (:names params)
+            schemas)))
+
+(defn emit-fn-schema-check
+  [fn-name fn-schema params schema-registry-sym]
+  `(if-let [ed# (m/explain ~fn-schema ~(into {} (map (juxt keyword symbol)) (:names params)) {:registry ~schema-registry-sym})]
+     (throw (ex-info (str "Call to " ~*ns* "/" ~fn-name " did not conform to schema:\n"
+                          (me/humanize ed# {:wrap :message}))
+                     {:type :clj-rest-client/arg-schema-error
+                      :explanation ed#}))))
+
+#_(defn emit-schema [{::parse/keys [fn-name params fn-schema]}]
+    `(def ~(symbol (str (name fn-name) "-sch"))
+       (let [param-sch (apply vector
+                              :tuple
+                              (concat (:norm-schemas params) (map #(vector :maybe %) (:vararg-schemas params))))]
+         (if fn-schema [:and param-sch fn-schema] param-sch))))
 
 (defn serialize-body [req jsonify-bodies json-opts]
   (if (some? (:body req))
@@ -108,23 +124,18 @@
       :never req)
     req))
 
-(defn destructure-conformed [{::parse/keys [params]} conformed-sym val-xf]
-  (mapcat #(list (symbol %) (list val-xf (list symbol %) (list (keyword %) conformed-sym))) (:names params)))
-
 (defn emit-declarations
-  [{::parse/keys [fn-name params] :as parsed}
-   {:keys [xf fdef? post-process-fn defaults json-resp? jsonify-bodies json-opts val-xf]}]
-  (let [conformed-sym (gensym "__auto__conf")]
-    `[~@(when fdef? (emit-fdef parsed))
-      (defn ~(symbol (name fn-name)) ~(emit-defn-params parsed)
-        (let [~@(emit-spec-check parsed conformed-sym)
-              ~@(destructure-conformed parsed conformed-sym val-xf)]
-          (~post-process-fn
-            (serialize-body
-              (meta-merge
-                {:clj-rest-client.core/args ~(mapv symbol (:names params))
-                 :clj-rest-client.core/name (symbol ~(str *ns*) ~fn-name)}
-                ~(assemble-request-base parsed xf defaults json-resp?))
-              ~jsonify-bodies
-              ~json-opts))))]))
-
+  [{::parse/keys [fn-name params fn-schema] :as parsed}
+   {:keys [xf def-schema? defaults json-resp? jsonify-bodies json-opts transformer schema-registry]}]
+  `[;~(when def-schema? (emit-schema parsed))
+    (defn ~(symbol (name fn-name)) ~(emit-defn-params parsed)
+      (let [~@(emit-schema-check parsed transformer schema-registry)]
+        ~(when fn-schema
+           (emit-fn-schema-check fn-name fn-schema params schema-registry))
+        (serialize-body
+          (meta-merge
+            {:clj-rest-client.core/args ~(mapv symbol (:names params))
+             :clj-rest-client.core/name (symbol ~(str *ns*) ~fn-name)}
+            ~(assemble-request-base parsed xf defaults json-resp?))
+          ~jsonify-bodies
+          ~json-opts)))])

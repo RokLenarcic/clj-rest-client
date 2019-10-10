@@ -7,14 +7,14 @@
 (s/def ::vararg-mark (s/and ::kw-or-sym #(= (name %) "&")))
 (s/def ::param-type-name-pair (s/cat :type ::kw-or-sym :name ::kw-or-sym))
 (s/def ::param (s/or :pair ::param-type-name-pair :solo ::kw-or-sym))
-(s/def ::arg (s/cat :param ::param :spec any?))
+(s/def ::arg (s/cat :param ::param :schema any?))
 
 (s/def ::args-vect
   (s/& vector? (s/* (s/alt :vararg ::vararg-mark :arg ::arg))))
 
 (s/def ::endpointdef
   (s/spec (s/cat :fn-name ::kw-or-sym
-            :fn-spec (s/? any?)
+            :fn-schema (s/? any?)
             :args ::args-vect
             :extra (s/? (complement vector?)))))
 (s/def ::simple-path (s/and string? #(not= (first %) \/)))
@@ -45,7 +45,7 @@
       (first param-tags))))
 
 (defn normalize-arg
-  "Convert arg spec into {:param {:type \"x\" :name \"y\"} :spec ::spec} or '&"
+  "Convert arg schema into {:param {:type \"x\" :name \"y\"} :schema ::schema} or '&"
   [arg]
   (if (= :vararg (first arg))
     '&
@@ -57,32 +57,32 @@
           {:type (keyword (name (:type data)))
            :name (name (:name data))})))))
 
-(defn param-map [params-n-specs path-params]
+(defn param-map [params-n-schemas path-params]
   (let [->param (comp :name :param)
-        [norm-parspec [_ & vararg-parspec]] (split-with #(not= '& %) (map normalize-arg params-n-specs))
+        [norm-parschema [_ & vararg-parschema]] (split-with #(not= '& %) (map normalize-arg params-n-schemas))
         by-type (reduce #(update %1 (:type %2) (fnil conj []) (:name %2))
-                  {} (map :param (concat norm-parspec vararg-parspec)))
+                  {} (map :param (concat norm-parschema vararg-parschema)))
         path-params (mapv name path-params)
         query-params (vec (set/difference (into #{} (by-type nil)) (into #{} path-params)))]
-    {:names (mapv ->param (concat norm-parspec vararg-parspec))
-     :norm-names (mapv ->param norm-parspec)
+    {:names (mapv ->param (concat norm-parschema vararg-parschema))
+     :norm-names (mapv ->param norm-parschema)
      :by-type (dissoc
                 (merge by-type
                   {:query query-params
                    :path path-params})
                 nil)
-     :vararg-names (mapv ->param vararg-parspec)
-     :norm-specs (mapv :spec norm-parspec)
-     :vararg-specs (mapv :spec vararg-parspec)}))
+     :vararg-names (mapv ->param vararg-parschema)
+     :norm-schemas (mapv :schema norm-parschema)
+     :vararg-schemas (mapv :schema vararg-parschema)}))
 
 
-(defn endpoint-meta [fn-name uri method params-n-specs fn-spec extra]
+(defn endpoint-meta [fn-name uri method params-n-schemas fn-schema extra]
   (let [parsed-uri (parse-uri uri)
-        params (param-map params-n-specs (filter keyword? parsed-uri))]
+        params (param-map params-n-schemas (filter keyword? parsed-uri))]
     {::fn-name (name fn-name)
      ::method (keyword (.toLowerCase (name method)))
      ::params params
-     ::fn-spec fn-spec
+     ::fn-schema fn-schema
      ::uri parsed-uri
      ::extra extra}))
 
@@ -94,7 +94,7 @@
 (defn args-vec
   "Extract arguments vector from path part."
   [[type val]]
-  (if (= type :simple-path) [] (map #(vector :arg {:param [:solo %1] :spec %2}) (distinct (filter keyword? (parse-uri (:path val)))) (:args val))))
+  (if (= type :simple-path) [] (map #(vector :arg {:param [:solo %1] :schema %2}) (distinct (filter keyword? (parse-uri (:path val)))) (:args val))))
 
 (defn parse-defs
   "Traverse structure and emit a sequence of endpoint meta objects"
@@ -116,6 +116,6 @@
              (into total-args (args-vec path-part))
              default-method
              false))
-         (let [{:keys [fn-name fn-spec args extra]} def]
-           [(endpoint-meta (name fn-name) total-path method (into total-args args) fn-spec extra)])))
+         (let [{:keys [fn-name fn-schema args extra]} def]
+           [(endpoint-meta (name fn-name) total-path method (into total-args args) fn-schema extra)])))
      (vals structure))))

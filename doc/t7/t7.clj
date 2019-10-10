@@ -1,6 +1,6 @@
 (ns t7.t7
   (:require [clj-rest-client.core :refer [defrest]]
-            [clj-rest-client.conform :refer :all]
+            [clj-rest-client.transform :refer :all]
             [clj-http.client :as client]
             [clojure.spec.alpha :as s])
   (:import (java.time.format DateTimeFormatter)))

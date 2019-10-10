@@ -4,26 +4,26 @@
     [clojure.string :refer [ends-with?]]
     [clj-rest-client.edn :as edn]
     [clj-rest-client.parse :as parse]
-    [clj-rest-client.impl :refer :all]))
+    [clj-rest-client.impl :refer :all]
+    [malli.core :as m]))
 
 (s/def ::jsonify-bodies any?)
 (s/def ::json-responses any?)
 (s/def ::json-opts any?)
 (s/def ::defaults any?)
 (s/def ::param-transform any?)
-(s/def ::post-process-fn any?)
-(s/def ::val-transform any?)
 (s/def ::path-prefix string?)
-(s/def ::fdef? boolean?)
-(s/def ::edn-readers map?)
+(s/def ::def-schema? boolean?)
+(s/def ::aero-opts map?)
+(s/def ::transformer any?)
+(s/def ::schema-registry any?)
 (s/def ::edn-key any?)
 (s/def ::default-method ::parse/method)
 
-(s/def ::options (s/keys* :opt-un [::edn-key ::edn-readers ::jsonify-bodies ::post-process-fn ::json-responses ::param-transform ::val-transform ::defaults ::json-opts ::default-method ::fdef?]))
-
-(defn default-val-transform
-  "Default transformation that is used on params' values"
-  [_ v] (if (keyword? v) (name v) v))
+(s/def ::options (s/keys* :opt-un [::edn-key ::aero-opts ::jsonify-bodies
+                                   ::json-responses ::param-transform ::defaults
+                                   ::json-opts ::default-method ::def-schema? ::transformer
+                                   ::schema-registry]))
 
 (defn prefix-middleware
   "Function for creating a clj-http middleware that prepends to url."
@@ -34,20 +34,21 @@
         ([req] (client (update req :url (partial str url-prefix))))
         ([req respond raise] (client (update req :url (partial str url-prefix)) respond raise))))))
 
-(defmacro defrest* [definition & {:keys [json-responses fdef? jsonify-bodies param-transform val-transform post-process-fn defaults json-opts default-method]
-                                  :or {json-responses true jsonify-bodies :smart post-process-fn identity defaults {} default-method :get}}]
-  (let [opts-map {:fdef?           fdef?
+(defmacro defrest* [definition & {:keys [json-responses def-schema? jsonify-bodies param-transform transformer schema-registry
+                                         defaults json-opts default-method]
+                                  :or   {json-responses true jsonify-bodies :smart defaults {} default-method :get schema-registry `m/default-registry}}]
+  (let [opts-map {:def-schema?     def-schema?
                   :jsonify-bodies  (eval jsonify-bodies)
                   :json-resp?      (eval json-responses)
                   :defaults        (gensym "__auto__defaults")
                   :xf              (or (eval param-transform) identity)
-                  :val-xf          (gensym "__auto__valxf")
-                  :post-process-fn (gensym "__auto__ppfn")
+                  :transformer     (gensym "__auto__transf")
+                  :schema-registry (gensym "__auto__schema_reg")
                   :json-opts       (gensym "__auto__json_opts")}
         defs (mapcat #(emit-declarations % opts-map)
                (parse/parse-defs definition default-method))]
-    `(let [~(:post-process-fn opts-map) ~post-process-fn
-           ~(:val-xf opts-map) ~(or val-transform `default-val-transform)
+    `(let [~(:transformer opts-map) ~transformer
+           ~(:schema-registry opts-map) ~schema-registry
            ~(:defaults opts-map) ~defaults
            ~(:json-opts opts-map) ~json-opts]
        ~@defs (quote ~(map second (filter #(= `defn (first %)) defs))))))
@@ -62,15 +63,13 @@
 
   Definition can be followed by opts key-value arguments, all of them are optional.
 
-  `:post-process-fn` This option specifies a function that is invoked after generating clj-http in API function. Defaults to identity.
-
-  `:default-method` sets the default method for endpoints with no method specified, defaults to `:get`\n
+  `:default-method` sets the default method for endpoints with no method specified, defaults to `:get`
 
   `:param-transform` This option specifies function that is used to transform query/form/key param kw/symbol to final name. Default `identity`.
 
-  `:val-transform` This option specifies a function that is applied to all arguments after argument spec and conform and before being embedded into
-   request map. It's a function of two arguments: param name and param value, returns new param value.
-   Defaults to a function that converts keyword values to a string.
+  `:transformer` a Malli transformer that is used on parameters before they are sent
+
+  `:schema-registry` a Malli schema-registry that is used on all Malli actions
 
   `:jsonify-bodies` set to `:always`, `:smart`, `:never`. Body params will be ran through serializer if set to `:always`. Option `:smart` will not
   run string or bytes bodies through JSON serializer. Defaults to :smart.
@@ -81,17 +80,18 @@
 
   `:defaults` map of default clj-http params added to every call, defaults to {}
 
-  `:edn-readers` map of reader to supply to edn reading process when invoking with a string argument
+  `:aero-opts` map of Aero options to be used when reading from EDN file.
 
   `:edn-key` when loading EDN use a specific key in loaded EDN, useful when using refs
 
-  `:fdef?` emit a fdef for generated functions, defaults to false
+  `:def-schema?` emit a var that contains schema for the generated function, defaults to false, var emitted
+  has same name as function with `-sch` suffix
   "
-  [definition & {:keys [edn-readers edn-key] :as args}]
+  [definition & {:keys [aero-opts edn-key] :as args}]
   `(defrest*
      ~(cond
        (symbol? definition) (var-get (resolve &env definition))
-       (string? definition) (edn/load-from-url definition edn-readers edn-key)
+       (string? definition) (edn/load-from-url definition aero-opts edn-key)
        :default definition) ~@(mapcat identity (or args {}))))
 
 (s/fdef defrest :args (s/cat :def (s/or :map map? :path string? :var symbol?) :opts ::options))

@@ -8,12 +8,12 @@ Very light-weight.
 
 ## Quick start
 
-This library requires Clojure 1.9.0 or higher.
+This library requires Clojure 1.10.0 or higher.
 
 Add to dependencies:
 
 ```clojure
-[clj-rest-client "1.0.0"]
+[clj-rest-client "2.0.0-alpha1"]
 ```
 
 In your namespace add the dependency:
@@ -38,7 +38,7 @@ You can then run the request by using `clj-http`'s request function:
 (client/request (get-person-by-id 3))
 ```
 
-The function is spec instrumented and will raise an error if parameters aren't valid by spec.
+The function uses Malli schemas and will raise an error if parameters aren't valid by schema.
 
 You can make the HTTP call immediate by adding an HTTP request executing function as a client function to API definition:
 
@@ -115,14 +115,14 @@ It is demonstrated in our tutorials how to approach using definitions without a 
 The endpoint definition is a list or vector (in this example a list), which contains the following:
 
 - a symbol, name of a function to be declared
-- an optional spec that is applied to the conformed parameter list
-- an argument vector; must contain alternating parameter names and parameter specs. The vector may contain symbol `&`, all argument
-specs following the symbol are added as kw-varargs on the generated function with provided specs wrapped in `nilable`.
+- an optional Malli schema that is applied to the parameter map such as `{:arg1 ... :arg2 ....}` where keys are argument names
+- an argument vector; must contain alternating parameter names and parameter schemas. The vector may contain symbol `&`, all argument
+schemas following the symbol are added as kw-varargs on the generated function with provided schemas wrapped in `:maybe`.
 
 - an optional non-vector expression that evaluates to a map, defaults to `{}`, contains additional properties for returned request map, 
 it can use parameters in the definition
 
-In this example, the spec applied to parameter list `[id time]` will be `(s/& (s/cat :id pos-int? :time inst?) any?)`.
+In this example, the schema applied to parameter list `[id time]` will be `[:and [:tuple pos-int? inst?] any?]`.
 
 Due to optional parts of the definition, the following definition is also legal:
 
@@ -147,14 +147,8 @@ The macro supports options as varargs key-values.
 Here are the options with their defaults:
 
 ```clojure
-(defrest {} :param-transform identity :json-responses true :jsonify-bodies :smart :post-process-fn identity)
+(defrest {} :param-transform identity :json-responses true :jsonify-bodies :smart)
 ```
-
-#### post-process-fn
-
-This option specifies a function that is invoked after generating clj-http in API function. Defaults to identity.
-
-There are benefits to separating request generation and request execution, thus the default being identity function.
 
 #### default-method 
 
@@ -166,12 +160,9 @@ This option specifies function that is used to transform query parameter names: 
 
 This is useful to transform Clojure's kebab-case symbol names to camel case param names.
 
-#### val-transform
+#### transformer
 
-This option specifies a function that is applied to all arguments after argument spec and conforming and before being embedded into
-the request map. It's a function of two arguments: param name symbol and param value and returns the new param value. 
-
-Default implementation replaces keyword params with their name string. It's available (for delegating purposes) as `default-val-transform` in core namespace.
+This option specifies a Malli transformer that is used to transform values before embedding them in request map
 
 #### json-responses
 
@@ -186,18 +177,25 @@ Option `:smart` will not run string bodies through JSON serializer. Defaults to 
 
 The `defaults` option should resolve to a map. This map is included in every request map as a baseline. Defaults to `{}`
 
-#### edn-readers
+#### aero-opts 
 
-If the definition is a string (link to EDN file), then this parameter specifies
-additional readers besides the default readers of `#crc/ns` and `#crc/ref`.
+If the definition is a string (URL to EDN file), then this parameter specifies
+a map of Aero options to be used when reading from EDN file.
+
+This library defines an additional reader `#crc/ns` which will resolve the keyword
+that follows with the namespace aliases of the current namespace.
+
+E.g. `#crc/ns :io/k` can be `:clojure.java.io/k` if `[clojure.java.io :as io]`.
+And `#crc/ns :k` becomes `mynamespace/k` if `mynamespace` is the current namespace.
 
 #### edn-key
 
 When loading EDN use a specific key in loaded EDN, useful when using refs.
 
-#### fdef?
+#### def-schema?
 
-Emit a fdef for generated functions, defaults to false.
+Emit a var that contains schema for the generated function, defaults to false, var emitted
+has same name as function with `-sch` suffix.
 
 ## License
 

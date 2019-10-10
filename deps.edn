@@ -1,0 +1,10 @@
+{:deps {meta-merge {:mvn/version "1.0.0"}
+        aero {:mvn/version "1.1.3"}
+        cheshire {:mvn/version "5.7.1"}
+        malli {:git/url "https://github.com/metosin/malli"
+               :sha "25ba1b0931ffc36be7d915ee46b907a72ff5f612"}}
+ :aliases {:dev {:extra-deps {clj-http {:mvn/version "3.9.0"}
+                              malli-datetime {:local/root "/Users/roklenarcic/clojure-projects/malli-schemas"}}}
+           :test {:extra-paths ["test"]
+                  :extra-deps  {lambdaisland/kaocha {:mvn/version "0.0-554"}
+                                lambdaisland/kaocha-cloverage {:mvn/version "0.0-41"}}}}}

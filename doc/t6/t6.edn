@@ -15,9 +15,9 @@
                    sort #{"created" "updated" "comments"}
                    direction #crc/ns :sort-dir
                    since #crc/ns :since])
-            ["{issue_no}" pos-int?] #crc/ref :issue-endpoints}}
+            ["{issue_no}" pos-int?] #ref [:issue-endpoints]}}
  :api-map
  {"organizations" (list-organizations [since (s/nilable pos-int?)])
   ["users/{username}/orgs" string?] (list-user-organizations [])
-  ["repos/{owner}/{repo}" string? string?] #crc/ref :repo-endpoints}}
+  ["repos/{owner}/{repo}" string? string?] #ref [:repo-endpoints]}}
 

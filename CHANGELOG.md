@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 2.0.0-alpha1
+
+- Use Aero to load EDN routes
+- Use Malli instead of Spec for validation
+- Transformations don't work yet, Malli is a deps git dependency, 
+it will not get automatically pulled when you use lein
+- Removed `post-process-fn` option
+- Removed `val-transform` option
+- Removed `fdef?` option and replaced it with `def-schema?` which if true causes a var to
+be defined in namespace that contains the schema for the function call.
+- Removed date/json transformers, these will be published as separate library
+of Malli transformers
+
 ## 1.0.0
 
 - updated documentation
