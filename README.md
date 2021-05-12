@@ -20,8 +20,8 @@ In your namespace add the dependency:
 
 ```clojure
 (ns example.core
-  (:require [clj-rest-client.core :refer [defrest]
-            [clj-http.client :as client]]))
+  (:require [clj-rest-client.core :refer [defrest]]
+            [clj-http.client :as client]))
 ```
 
 Define a rest interface:
