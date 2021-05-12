@@ -43,7 +43,7 @@ The function is spec instrumented and will raise an error if parameters aren't v
 You can make the HTTP call immediate by adding an HTTP request executing function as a client function to API definition:
 
 ```clojure
-(defrest {"http://example.com" {"person" {GET (get-person-by-id [id pos-int?])}}} :client client/request)
+(defrest {"http://example.com" {"person" {GET (get-person-by-id [id pos-int?])}}} :post-process-fn client/request)
 
 (get-person-by-id 3)
 ```
